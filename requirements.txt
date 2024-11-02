@@ -1,0 +1,9 @@
+streamlit==1.39.0
+selenium==4.25.0
+beautifulsoup4==4.12.3
+openai==1.51.0
+pandas==2.2.3  # Verify the correct version
+html2text==2024.2.26
+tiktoken==0.8.0
+python-dotenv==1.0.1
+webdriver-manager==4.0.0  # To manage ChromeDriver
