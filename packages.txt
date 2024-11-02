@@ -1,5 +1,5 @@
-chromium
-chromium-driver
+chromium=120.0.6099.224
+chromium-driver=120.0.6099.224
 libnss3
 libgconf-2-4
 libxss1
