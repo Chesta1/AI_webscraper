@@ -35,62 +35,66 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 def get_driver():
     """Create and return a configured WebDriver instance."""
     try:
-        chrome_options = Options()
-        
-        # Set correct versions based on installed Chromium
+        # First check installed versions
         import subprocess
         import re
         
-        # Get Chromium version
         try:
+            # Get Chromium version
             chrome_version_output = subprocess.check_output(['chromium', '--version']).decode()
-            chrome_version_match = re.search(r'Chromium (\d+\.\d+\.\d+\.\d+)', chrome_version_output)
-            if chrome_version_match:
-                chrome_version = chrome_version_match.group(1)
-                st.write(f"Detected Chromium version: {chrome_version}")
+            st.write(f"Installed Chromium: {chrome_version_output.strip()}")
+            
+            # Get ChromeDriver version
+            chromedriver_version_output = subprocess.check_output(['chromedriver', '--version']).decode()
+            st.write(f"Installed ChromeDriver: {chromedriver_version_output.strip()}")
+            
         except Exception as e:
-            st.warning(f"Could not detect Chromium version: {str(e)}")
-            chrome_version = "120.0.6099.224"  # Fallback version
-
+            st.warning(f"Version check failed: {str(e)}")
+        
+        # Initialize Chrome options
+        chrome_options = Options()
+        
         # Basic required options
-        chrome_options.add_argument("--headless=new")  # Updated headless mode
+        chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         
-        # Set binary location and additional options
+        # Set binary location
         chrome_options.binary_location = "/usr/bin/chromium"
-        chrome_options.add_argument(f"--browser-version={chrome_version}")
+        
+        # Additional options
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--remote-debugging-port=9222")  # Enable debugging
         
-        # Set matching user agent
-        chrome_options.add_argument(f"--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version} Safari/537.36")
+        # Generic user agent
+        chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/stable Safari/537.36")
 
-        # Initialize service with specific version checks
+        # Initialize service with logging
         service = Service(
             executable_path='/usr/bin/chromedriver',
-            log_path='/tmp/chromedriver.log',  # Add logging
-            service_args=['--verbose']  # Enable verbose logging
+            log_path='/tmp/chromedriver.log',
+            service_args=['--verbose']
         )
 
         st.write("Attempting to initialize ChromeDriver...")
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        st.success("ChromeDriver initialized successfully!")
         
-        # Verify browser version
-        browser_version = driver.capabilities['browserVersion']
-        driver_version = driver.capabilities['chrome']['chromedriverVersion'].split(' ')[0]
-        st.write(f"Browser version: {browser_version}")
-        st.write(f"ChromeDriver version: {driver_version}")
+        # Try to create driver
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        
+        # Verify browser capabilities
+        st.write("Driver capabilities:")
+        st.write(f"Browser version: {driver.capabilities.get('browserVersion', 'unknown')}")
+        st.write(f"ChromeDriver version: {driver.capabilities.get('chrome', {}).get('chromedriverVersion', 'unknown')}")
         
         return driver
         
     except Exception as e:
         st.error(f"Failed to initialize ChromeDriver: {str(e)}")
         
-        # Try to read ChromeDriver log if available
+        # Try to read ChromeDriver log
         try:
             with open('/tmp/chromedriver.log', 'r') as f:
                 st.code(f.read(), language='text')
@@ -101,84 +105,44 @@ def get_driver():
         st.code(traceback.format_exc())
         raise
 
-def check_versions_compatibility():
-    """Check if Chromium and ChromeDriver versions are compatible."""
-    try:
-        import subprocess
-        import re
-        
-        # Get Chromium version
-        chrome_output = subprocess.check_output(['chromium', '--version']).decode()
-        chrome_match = re.search(r'Chromium (\d+\.\d+\.\d+\.\d+)', chrome_output)
-        chrome_version = chrome_match.group(1) if chrome_match else "unknown"
-        
-        # Get ChromeDriver version
-        driver_output = subprocess.check_output(['chromedriver', '--version']).decode()
-        driver_match = re.search(r'ChromeDriver (\d+\.\d+\.\d+\.\d+)', driver_output)
-        driver_version = driver_match.group(1) if driver_match else "unknown"
-        
-        # Compare major versions
-        chrome_major = chrome_version.split('.')[0]
-        driver_major = driver_version.split('.')[0]
-        
-        st.write("Version Check:")
-        st.write(f"Chromium: {chrome_version}")
-        st.write(f"ChromeDriver: {driver_version}")
-        
-        if chrome_major == driver_major:
-            st.success("✅ Versions are compatible!")
-        else:
-            st.error("❌ Version mismatch detected!")
-            st.warning("Major versions of Chromium and ChromeDriver should match")
-            
-    except Exception as e:
-        st.error(f"Error checking versions: {str(e)}")
 
 
-
-
-def check_installation():
-    """Check Chrome and ChromeDriver installation."""
-    try:
-        import subprocess
-        import os
-        
-        # Check paths
-        paths_to_check = [
-            '/usr/bin/chromium',
-            '/usr/bin/chromedriver',
-            '/snap/bin/chromium',
-            '/snap/bin/chromedriver'
-        ]
-        
-        st.write("Checking Chrome/ChromeDriver installation:")
-        
-        for path in paths_to_check:
-            if os.path.exists(path):
-                st.write(f"✅ Found: {path}")
-                # Check if executable
-                if os.access(path, os.X_OK):
-                    st.write(f"   └─ Has execute permission")
-                else:
-                    st.write(f"   └─ Missing execute permission")
+def check_system_setup():
+    """Verify system setup and dependencies."""
+    import os
+    import subprocess
+    
+    st.write("Checking system setup...")
+    
+    # Check critical files
+    files_to_check = {
+        '/usr/bin/chromium': 'Chromium binary',
+        '/usr/bin/chromedriver': 'ChromeDriver binary'
+    }
+    
+    for file_path, description in files_to_check.items():
+        if os.path.exists(file_path):
+            if os.access(file_path, os.X_OK):
+                st.success(f"✅ {description} found and executable: {file_path}")
             else:
-                st.write(f"❌ Not found: {path}")
-        
-        # Try to get versions
+                st.error(f"❌ {description} found but not executable: {file_path}")
+        else:
+            st.error(f"❌ {description} not found: {file_path}")
+    
+    # Check dependencies
+    dependencies = ['libnss3', 'libgconf-2-4', 'libxss1', 'libappindicator1', 'fonts-liberation']
+    
+    st.write("\nChecking dependencies:")
+    for dep in dependencies:
         try:
-            chrome_version = subprocess.check_output(['chromium', '--version']).decode()
-            st.write(f"Chromium version: {chrome_version}")
-        except:
-            st.write("Could not detect Chromium version")
-            
-        try:
-            chromedriver_version = subprocess.check_output(['chromedriver', '--version']).decode()
-            st.write(f"ChromeDriver version: {chromedriver_version}")
-        except:
-            st.write("Could not detect ChromeDriver version")
-            
-    except Exception as e:
-        st.error(f"Error during installation check: {str(e)}")
+            subprocess.run(['dpkg', '-s', dep], 
+                         check=True, 
+                         stdout=subprocess.PIPE, 
+                         stderr=subprocess.PIPE)
+            st.success(f"✅ {dep} is installed")
+        except subprocess.CalledProcessError:
+            st.error(f"❌ {dep} is not installed")
+
 
 
 def get_html_content(driver, max_retries=3):
@@ -345,10 +309,8 @@ def main():
     # Add session state
 
     with st.expander("System Information", expanded=True):
-        check_installation()
-        st.divider()
-        check_versions_compatibility()
-    
+        check_system_setup()
+
     if 'scraping_in_progress' not in st.session_state:
         st.session_state.scraping_in_progress = False
     
