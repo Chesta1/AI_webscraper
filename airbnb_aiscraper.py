@@ -15,6 +15,7 @@ import pandas as pd
 import json
 # from dotenv import load_dotenv, find_dotenv
 from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -24,12 +25,12 @@ chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
-import streamlit as st
-import os
+# from selenium import webdriver
+# from selenium.webdriver.chrome.options import Options
+
+# from selenium.webdriver.chrome.service import Service
+# import streamlit as st
+# import os
 
 def get_driver():
     """Create and return a configured WebDriver instance."""
@@ -57,8 +58,8 @@ def get_driver():
 
     try:
         # Use webdriver-manager to automatically handle ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        # service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(ChromeDriverManager(version="130.0.6723.91").install(), options=chrome_options)
         return driver
     except Exception as e:
         st.error(f"Error initializing WebDriver: {str(e)}")
