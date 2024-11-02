@@ -59,7 +59,7 @@ def get_driver():
     try:
         # Use webdriver-manager to automatically handle ChromeDriver
         # service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(ChromeDriverManager(version="130.0.6723.91").install(), options=chrome_options)
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
         return driver
     except Exception as e:
         st.error(f"Error initializing WebDriver: {str(e)}")
