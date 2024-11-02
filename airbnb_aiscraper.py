@@ -15,7 +15,7 @@ import pandas as pd
 import json
 # from dotenv import load_dotenv, find_dotenv
 from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+# from webdriver_manager.chrome import ChromeDriverManager
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -34,36 +34,104 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 
 def get_driver():
     """Create and return a configured WebDriver instance."""
-    chrome_options = Options()
-
-    # Required options for headless operation
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    
-    # Recommended options for Streamlit Cloud and other cloud environments
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-popup-blocking")
-    chrome_options.add_argument("--disable-extensions")  # Remove if you’re adding an extension
-    chrome_options.add_argument("--disable-web-security")
-    chrome_options.add_argument("--allow-running-insecure-content")
-
-    # Add Chrome extension (optional)
-    # extension_path = "path/to/extension.crx"  # Replace with the actual path to your extension
-    # if os.path.exists(extension_path):
-    #     chrome_options.add_extension(extension_path)
-    # else:
-    #     st.warning("Extension file not found. Running without extension.")
-
     try:
-        # Use webdriver-manager to automatically handle ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        return driver
+        chrome_options = Options()
+        
+        # Log system information first
+        try:
+            import subprocess
+            chrome_version = subprocess.check_output(['chromium', '--version']).decode().strip()
+            chromedriver_version = subprocess.check_output(['chromedriver', '--version']).decode().strip()
+            st.write(f"Installed Chromium version: {chrome_version}")
+            st.write(f"Installed ChromeDriver version: {chromedriver_version}")
+        except Exception as e:
+            st.warning(f"Could not detect versions: {str(e)}")
+
+        # Basic required options
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        
+        # Set binary location for Streamlit Cloud
+        chrome_options.binary_location = "/usr/bin/chromium"
+        
+        # Additional options
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-web-security")
+        chrome_options.add_argument("--window-size=1920,1080")
+        
+        # Modern user agent
+        chrome_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+
+        # First try with executable path
+        try:
+            service = Service(executable_path='/usr/bin/chromedriver')
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            st.success("Successfully initialized ChromeDriver with explicit path")
+            return driver
+        except Exception as e1:
+            st.warning(f"Failed to initialize with explicit path: {str(e1)}")
+            
+            # Second attempt: Try letting Selenium find ChromeDriver
+            try:
+                service = Service()  # Let Selenium find ChromeDriver
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+                st.success("Successfully initialized ChromeDriver with automatic path detection")
+                return driver
+            except Exception as e2:
+                st.error(f"Failed both initialization attempts")
+                raise Exception(f"First attempt error: {str(e1)}\nSecond attempt error: {str(e2)}")
+                
     except Exception as e:
-        st.error(f"Error initializing WebDriver: {str(e)}")
+        st.error(f"Failed to initialize ChromeDriver: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
         raise
+
+
+def check_installation():
+    """Check Chrome and ChromeDriver installation."""
+    try:
+        import subprocess
+        import os
+        
+        # Check paths
+        paths_to_check = [
+            '/usr/bin/chromium',
+            '/usr/bin/chromedriver',
+            '/snap/bin/chromium',
+            '/snap/bin/chromedriver'
+        ]
+        
+        st.write("Checking Chrome/ChromeDriver installation:")
+        
+        for path in paths_to_check:
+            if os.path.exists(path):
+                st.write(f"✅ Found: {path}")
+                # Check if executable
+                if os.access(path, os.X_OK):
+                    st.write(f"   └─ Has execute permission")
+                else:
+                    st.write(f"   └─ Missing execute permission")
+            else:
+                st.write(f"❌ Not found: {path}")
+        
+        # Try to get versions
+        try:
+            chrome_version = subprocess.check_output(['chromium', '--version']).decode()
+            st.write(f"Chromium version: {chrome_version}")
+        except:
+            st.write("Could not detect Chromium version")
+            
+        try:
+            chromedriver_version = subprocess.check_output(['chromedriver', '--version']).decode()
+            st.write(f"ChromeDriver version: {chromedriver_version}")
+        except:
+            st.write("Could not detect ChromeDriver version")
+            
+    except Exception as e:
+        st.error(f"Error during installation check: {str(e)}")
 
 
 def get_html_content(driver, max_retries=3):
@@ -228,6 +296,10 @@ def process_listing(driver, link, user_query):
 def main():
     st.title("Sequential Tab-based Airbnb Scraper")
     # Add session state
+
+    with st.expander("System Information", expanded=True):
+        check_installation()
+    
     if 'scraping_in_progress' not in st.session_state:
         st.session_state.scraping_in_progress = False
     

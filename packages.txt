@@ -1,3 +1,5 @@
+chromium
+chromium-driver
 libnss3
 libgconf-2-4
 libxss1
