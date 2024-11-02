@@ -49,11 +49,11 @@ def get_driver():
     chrome_options.add_argument("--allow-running-insecure-content")
 
     # Add Chrome extension (optional)
-    extension_path = "path/to/extension.crx"  # Replace with the actual path to your extension
-    if os.path.exists(extension_path):
-        chrome_options.add_extension(extension_path)
-    else:
-        st.warning("Extension file not found. Running without extension.")
+    # extension_path = "path/to/extension.crx"  # Replace with the actual path to your extension
+    # if os.path.exists(extension_path):
+    #     chrome_options.add_extension(extension_path)
+    # else:
+    #     st.warning("Extension file not found. Running without extension.")
 
     try:
         # Use webdriver-manager to automatically handle ChromeDriver
